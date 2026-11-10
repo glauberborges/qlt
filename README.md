@@ -12,8 +12,8 @@ Ao rodar `/qlt-init-review [PR]`:
 2. **Escolha:** **sempre pergunta** quais revisores rodar. Nunca escolhe sozinho.
 3. **Fase 1, em paralelo:** os escolhidos entre `code`, `security`, `performance` e `tests`. Cada subagent grava o próprio arquivo, então o resultado sobrevive se o coordenador cair.
 4. **Fase 2:** `qa`, depois dos outros, para validar também os testes novos do `tests`.
-5. **Consolidação:** `90-final.md` com achados deduplicados por severidade, contagem por revisor e um veredito único (`approved`, `changes_requested` ou `blocked`).
-6. **Entrega:** só mostra o resumo, ou avisa o terminal do dev no [Orca](#entrega-ao-dev-orca-opcional).
+5. **Consolidação:** achados deduplicados por severidade, contagem por revisor e um veredito único (`approved`, `changes_requested` ou `blocked`), entregues como um [relatório HTML](#o-relatório) (`90-final.html`) e um resumo em texto (`90-final.md`).
+6. **Entrega:** mostra o link do relatório, ou avisa o terminal do dev no [Orca](#entrega-ao-dev-orca-opcional).
 
 | Revisor | O que faz | Grava código? |
 |---|---|---|
@@ -118,9 +118,19 @@ A saída de uma execução fica em `<worktree>/.qlt/review/`; as anteriores vão
 | `00-scope.md` | Comando do diff, `--stat`, arquivos, `head_sha` |
 | `10-code.md` · `11-security.md` · `12-performance.md` · `13-tests.md` | Um arquivo por revisor da fase 1 |
 | `20-qa.md` | Fase 2 |
-| `90-final.md` | Consolidação e veredito |
+| `90-final.html` | Relatório visual (abre direto no navegador) |
+| `90-final.md` | O mesmo conteúdo em texto, para o terminal e para agentes |
+| `90-final.json` | Dados da consolidação: a fonte dos dois arquivos acima |
 
 **Retomada:** se existir um `state.json` com `status: in_progress`, a skill mostra quem já terminou e pergunta se retoma só os pendentes ou começa do zero. Se o `HEAD` mudou desde a execução, avisa que os achados podem estar velhos e oferece refazer também os concluídos.
+
+## O relatório
+
+Toda execução termina com o mesmo relatório, `90-final.html`: um arquivo único, sem servidor nem dependência externa, com tema claro e escuro, filtro por severidade e por revisor e cada achado expansível (onde, problema, evidência, correção mínima e confiança). Seções sem conteúdo (perguntas, verificação do qa, regras propostas…) não aparecem.
+
+![Exemplo do relatório](docs/relatorio.png)
+
+O layout vem de [`report-template.html`](skills/qlt-init-review/report-template.html), que só tem a casca (CSS e JavaScript). O coordenador grava os dados em `90-final.json` e um comando troca uma linha do modelo por esse JSON, então o visual é sempre o mesmo e o conteúdo é escapado (um trecho de código com HTML não vira HTML). O arquivo [`examples/90-final.json`](examples/90-final.json) mostra todos os campos, com dados fictícios.
 
 ## Regras por projeto (opcional)
 
@@ -143,7 +153,7 @@ Para um **revisor extra** (ou para sobrepor um do kit), crie `.claude/agents/qlt
 
 ## Entrega ao dev (Orca, opcional)
 
-Se você roda o review num terminal do Orca separado do terminal do dev, na mesma worktree, o coordenador espera o dev ficar ocioso (`orca terminal wait --for tui-idle`) e manda **uma linha** apontando para `90-final.md`. Se houver mais de um outro terminal na worktree, ele não adivinha e só mostra o resumo. Fora do Orca, só mostra o resumo.
+Se você roda o review num terminal do Orca separado do terminal do dev, na mesma worktree, o coordenador espera o dev ficar ocioso (`orca terminal wait --for tui-idle`) e manda **uma linha** apontando para `90-final.md` (e `90-final.html`). Se houver mais de um outro terminal na worktree, ele não adivinha e só mostra o resumo. Fora do Orca, só mostra o resumo.
 
 ## Segurança
 
@@ -159,13 +169,17 @@ O contrato pede que os revisores não façam commit, push nem troquem de branch,
 └── marketplace.json         # este repo é o marketplace de si mesmo
 skills/qlt-init-review/
 ├── SKILL.md                 # coordenador
-└── contract.md              # contrato comum, injetado no prompt de cada revisor
+├── contract.md              # contrato comum, injetado no prompt de cada revisor
+└── report-template.html     # casca do relatório (sem dados)
 agents/qlt-{code,security,performance,tests,qa}.md
+examples/90-final.json       # exemplo (fictício) dos dados do relatório
+docs/relatorio.png           # imagem usada neste README
 ```
 
 ## Desenvolvimento
 
 - Teste local sem instalar: `claude --plugin-dir /caminho/para/qlt`. Valide os manifestos com `claude plugin validate .`.
+- Para mudar o visual do relatório, edite só `report-template.html` e mantenha a linha `/*QLT_DATA*/null`, que o comando da etapa 5 do `SKILL.md` substitui pelo JSON. Para testar, rode esse comando com `examples/90-final.json` e abra o HTML gerado. Mudou um campo do JSON? Atualize o esquema no `SKILL.md` e o exemplo.
 - Nomes de agent não aceitam `:` (reservado ao prefixo do plugin). Por isso `qlt-<dim>`.
 - Os arquivos de saída dos revisores têm frontmatter fixo (`reviewer`, `verdict`, `counts`, `head_sha`), definido em [`contract.md`](skills/qlt-init-review/contract.md). O coordenador consolida e retoma lendo só ele: mantenha o formato.
 - Sem `version` no `plugin.json`: cada commit no branch padrão vira uma atualização para quem instalou.

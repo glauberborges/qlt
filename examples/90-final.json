@@ -1,0 +1,90 @@
+{
+  "title": "Revisão do PR #42 · Exportação de pedidos em CSV",
+  "subtitle": "Adiciona o endpoint de exportação e o botão na listagem de pedidos.",
+  "verdict": "changes_requested",
+  "meta": [
+    "branch `feature/csv-export` → `main`",
+    "head `a1b2c3d`",
+    "6 arquivos · +210 / −12",
+    "revisores: code, security, qa (kit)"
+  ],
+  "countNote": "Contagem depois de fundir o achado repetido entre `code` e `qa`.",
+  "reviewers": [
+    {"k": "code", "v": "changes_requested", "c": {"critical": 0, "high": 0, "medium": 1, "low": 1, "info": 0}, "d": "Bugs, bordas e contratos. Achou o escape de CSV e a falta de limite de linhas."},
+    {"k": "security", "v": "changes_requested", "c": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 1}, "d": "Autorização por id e dados sensíveis. Achou o acesso a pedidos de outros usuários."},
+    {"k": "qa", "v": "approved", "c": {"critical": 0, "high": 0, "medium": 1, "low": 0, "info": 1}, "d": "Rodou os checks e exercitou a exportação. Reproduziu o problema do escape."}
+  ],
+  "findings": [
+    {
+      "sev": "high",
+      "rev": ["security"],
+      "conf": "alta",
+      "title": "A exportação aceita qualquer `orderId` sem conferir o dono",
+      "where": ["src/export/csv.controller.ts:31"],
+      "problem": "O endpoint busca o pedido só pelo id informado na URL. Qualquer usuário autenticado que troque o id baixa o CSV de pedidos de outras pessoas (CWE-639).",
+      "evidence": "`GET /orders/17/export` com a sessão do usuário B devolve os itens do pedido 17, que pertence ao usuário A.",
+      "fix": "Filtrar por `order.userId === session.userId` na consulta e responder 404 quando não houver correspondência."
+    },
+    {
+      "sev": "medium",
+      "rev": ["code", "qa"],
+      "conf": "média (code) · alta (qa)",
+      "title": "Campos com vírgula ou aspas quebram o CSV",
+      "where": ["src/export/csv.ts:18", "src/export/csv.ts:27"],
+      "problem": "Os valores são unidos com `,` sem escape. Um nome como `Silva, João` vira duas colunas e desloca todas as seguintes.",
+      "evidence": "Reprodução do qa: a linha `Silva, João,10` é lida como 3 colunas.",
+      "fix": "Envolver o campo em aspas duplas e duplicar as aspas internas (RFC 4180), ou usar a biblioteca de CSV que o projeto já tem."
+    },
+    {
+      "sev": "low",
+      "rev": ["code"],
+      "conf": "baixa",
+      "title": "Sem limite de linhas na exportação",
+      "where": ["src/export/csv.controller.ts:44"],
+      "problem": "A consulta carrega todos os itens do pedido em memória antes de gerar o arquivo. Pedidos muito grandes podem esgotar a memória do processo.",
+      "evidence": "",
+      "fix": "Gerar o arquivo em stream, ou limitar o número de linhas e avisar quando passar do limite."
+    },
+    {
+      "sev": "info",
+      "rev": ["security"],
+      "conf": "",
+      "title": "O CSV inclui o e-mail do cliente",
+      "where": ["src/export/csv.ts:12"],
+      "problem": "O e-mail é dado pessoal. Confirmar se a exportação precisa dele.",
+      "evidence": "",
+      "fix": ""
+    },
+    {
+      "sev": "info",
+      "rev": ["qa"],
+      "conf": "",
+      "title": "O botão de exportar não tem rótulo acessível",
+      "where": ["src/components/ExportButton.tsx:9"],
+      "problem": "O botão só tem um ícone. Leitores de tela anunciam \"botão\" sem dizer o que ele faz.",
+      "evidence": "",
+      "fix": ""
+    }
+  ],
+  "questions": [
+    "A exportação deve incluir pedidos cancelados?",
+    "O e-mail do cliente precisa mesmo aparecer no arquivo?"
+  ],
+  "checks": [
+    ["`npm test -- export`", "12 testes, 0 falhas", "ok"],
+    ["`npm run build`", "sem erros", "ok"],
+    ["`npm run lint`", "0 erros, 2 avisos em arquivos que o PR não tocou", "warn"]
+  ],
+  "qaNote": "Executado na worktree depois de um `npm ci` limpo.",
+  "extra": [
+    {"t": "Casos exercitados", "items": ["Pedido sem itens: devolve só o cabeçalho", "Pedido com 10 mil itens: 0,4 s", "Nome com acento: preservado em UTF-8"]}
+  ],
+  "gaps": [
+    "Não testado com dados reais.",
+    "O revisor `performance` não foi escolhido."
+  ],
+  "rules": [
+    ["common.md", "Endpoints que recebem um id devem conferir que o recurso pertence ao usuário da sessão."]
+  ],
+  "rulesNote": "Não gravadas: aguardam aprovação."
+}
