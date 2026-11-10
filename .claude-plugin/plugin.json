@@ -1,0 +1,9 @@
+{
+  "name": "qlt",
+  "description": "Review multiagente do diff ou de um PR: você escolhe os revisores (code, security, performance, tests, qa), cada fase grava um arquivo em .qlt/review/ e a execução retoma de onde parou.",
+  "author": { "name": "glauberborges" },
+  "homepage": "https://github.com/glauberborges/qlt",
+  "repository": "https://github.com/glauberborges/qlt",
+  "license": "MIT",
+  "keywords": ["code-review", "pr-review", "security", "performance", "tests", "qa", "agents"]
+}

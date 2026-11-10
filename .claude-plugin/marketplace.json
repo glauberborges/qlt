@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "qlt",
+  "owner": { "name": "glauberborges" },
+  "metadata": { "description": "Kit qlt de review multiagente para Claude Code" },
+  "plugins": [
+    {
+      "name": "qlt",
+      "source": "./",
+      "description": "Review multiagente com fases em disco e retomada: code, security, performance, tests e qa.",
+      "category": "code-review",
+      "homepage": "https://github.com/glauberborges/qlt"
+    }
+  ]
+}
