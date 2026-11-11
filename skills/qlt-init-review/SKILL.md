@@ -20,7 +20,7 @@ Argumento: `$ARGUMENTS` (número do PR; vazio = diff da branch atual).
 - `RAIZ` = `git rev-parse --show-toplevel`. Saída em `RAIZ/.qlt/review/`; execuções antigas em `RAIZ/.qlt/archive/<ts>/` (`ts` = `date +%Y%m%d-%H%M%S`). O `.qlt/` deve estar ignorado pelo git: antes de gravar, rode `git check-ignore -q .qlt/review/state.json`; se falhar, avise que falta `.qlt/` no ignore (global, `~/.config/git/ignore`, ou o `.gitignore` do repo) e pergunte se continua (os relatórios apareceriam no `git status`).
 - Perguntar = `AskUserQuestion`. Sem essa ferramenta (outros clients), use lista numerada em texto e espere a resposta.
 - `contract.md` fica na mesma pasta deste `SKILL.md`, `${CLAUDE_SKILL_DIR}` (o "Base directory" mostrado ao carregar a skill; sem ele, procure `qlt-init-review/contract.md` em `~/.claude/skills`, `~/.codex/skills` ou `~/.config/skillshare/skills`). `report-template.html`, o modelo do relatório visual (etapa 5), fica na mesma pasta e é achado do mesmo jeito.
-- `KIT_AGENTS` = a pasta com os papéis `qlt-*.md` do kit: `${CLAUDE_SKILL_DIR}/../../agents/` (instalação como plugin ou clone do repo); se não existir, o primeiro entre `~/.claude/agents`, `~/.cursor/agents` e `~/.config/skillshare/agents` que tenha `qlt-*.md`.
+- `KIT_AGENTS` = a pasta com os papéis do kit: `${CLAUDE_SKILL_DIR}/../../agents/` (instalação como plugin ou clone do repo; liste com `ls` no shell, que segue os links da skill até a pasta real). Se não existir ou vier vazia, procure `*qlt-*.md` em `~/.claude/agents`, `~/.cursor/agents` e, recursivamente, `~/.config/skillshare/agents`. Alguns instaladores (o skillshare, por exemplo) prefixam o nome do arquivo (`<repo>__agents__qlt-code.md`) e aninham a pasta: **o nome do revisor é o `name:` do frontmatter** (`qlt-code`), nunca o do arquivo.
 - Nomes: instalado como plugin do Claude Code, o kit aparece como `/qlt:qlt-init-review` e os agents como `qlt:qlt-<dim>`; nas demais instalações, `/qlt-init-review` e `qlt-<dim>`. Use o nome exatamente como o client lista.
 - Arquivo de cada revisor: code `10-code.md` · security `11-security.md` · performance `12-performance.md` · tests `13-tests.md` · qa `20-qa.md`. Revisor extra do projeto: `14-<dim>.md`, `15-…`, na ordem escolhida. `dim` = nome do agent sem o prefixo `qlt-`.
 - `state.json`:
@@ -43,7 +43,7 @@ Se `.qlt/review/state.json` existe:
 - Grave em `00-scope.md`: o(s) comando(s) exatos do diff, `git diff --stat`, a lista de arquivos, `head_sha` e quais `RAIZ/.claude/qlt/*.md` existem. Grave `state.json` com `phase: choose`.
 
 ## 2. Escolha dos revisores (sempre)
-- Descubra os `qlt-*.md` em `RAIZ/.claude/agents/` (projeto) e em `KIT_AGENTS` (kit). Mesmo nome → vale o do projeto.
+- Descubra os agents `qlt-*` (pelo `name:` do frontmatter) em `RAIZ/.claude/agents/` (projeto) e em `KIT_AGENTS` (kit). Mesmo nome → vale o do projeto.
 - Pergunte com `AskUserQuestion` multiSelect: um item por revisor, com a `description` e "(projeto)" ou "(kit)". Cada pergunta aceita 2 a 4 opções: divida em perguntas equilibradas na mesma chamada (5 revisores = 3 + 2).
 - Nada marcado: encerre. Grave a escolha em `state.json` (todos `pending`, `phase: review1`).
 
@@ -59,7 +59,7 @@ OUTROS: <demais revisores escolhidos, ou "nenhum">
 REGRAS: <RAIZ>/.claude/qlt/common.md, <RAIZ>/.claude/qlt/<dim>.md (só os que existem, ou "nenhuma")
 ```
 - **Claude e Cursor:** `Agent`/subagent. O `subagent_type` é `qlt-<dim>` quando o revisor veio do projeto (o agent de `.claude/agents/`) e o nome do kit quando veio de `KIT_AGENTS` (`qlt-<dim>` ou `qlt:qlt-<dim>`, como o client lista). Como o plugin tem prefixo, o agent do projeto não "sobrescreve" o do kit sozinho: a escolha é sua, pela origem. O papel já vem no agent; o prompt acima traz o resto.
-- **Client sem agents (Codex, Grok, Hermes):** leia o papel em `RAIZ/.claude/agents/qlt-<dim>.md` ou, sem ele, `KIT_AGENTS/qlt-<dim>.md`, tire o frontmatter e use o corpo como prompt de um subagent genérico, antes do bloco acima. Sem subagents, rode os papéis **em sequência** você mesmo, cada um gravando o seu arquivo.
+- **Client sem agents (Codex, Grok, Hermes):** leia o papel (o arquivo cujo `name:` é `qlt-<dim>`) em `RAIZ/.claude/agents/` ou, sem ele, em `KIT_AGENTS`, tire o frontmatter e use o corpo como prompt de um subagent genérico, antes do bloco acima. Sem subagents, rode os papéis **em sequência** você mesmo, cada um gravando o seu arquivo.
 - O próprio revisor grava o seu arquivo. Quando cada um retornar, confira que o arquivo existe com `verdict` e marque `done`; senão `failed`. Atualize `state.json` a cada retorno.
 
 ## 4. Fase 2 — `qa`, se escolhido
